@@ -52,3 +52,5 @@ running SLAVE failover
 
 
 Installation completed! You can now access your application through VIP, 192.168.0.100 port 1883.
+=======
+# keepalived
