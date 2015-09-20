@@ -1,0 +1,28 @@
+vrrp_instance VI_1 {
+  interface {{if env "INTERFACE"}}{{env "INTERFACE"}}{{else}}eth0{{end}}
+  state {{if env "STATE"}}{{env "STATE"}}{{else}}MASTER{{end}}
+  virtual_router_id 51
+  priority {{if env "PRIOITY"}}{{env "PRIORITY"}}{{else}}100{{end}}
+  virtual_ipaddress {
+    {{key "services/vip"}}
+  }
+}
+{{range $service, $pairs := tree "services" | byKey}}{{$ports := key (print "services/" $service "/ports") | split "/"}}{{range $port := $ports}}
+virtual_server {{key "services/vip"}} {{$port}} {
+    delay_loop 6
+    lvs_sched rr
+    lvs_method DR{{range service $service}}{{$p := (print .Port)}}{{if eq $port $p}}{{if .Tags.Contains "udp"}}
+    protocol UDP{{else}}
+    protocol TCP{{end}}{{end}}{{end}}
+    {{range service $service}}{{$p := (print .Port)}}{{if eq $port $p}}
+    real_server {{.Address}} {{.Port}}  {
+        weight {{$pairs.weight.Value}}{{if .Tags.Contains "udp"}}
+        MISC_CHECK {
+            misc_path {{$pairs.misc_check.Value}} {{.Address}} {{.Port}}
+        }{{else if $pairs.tcp_check}}
+        TCP_CHECK {
+            connect_timeout {{$pairs.tcp_check.Value}}
+        }{{end}}
+    }{{end}}{{end}}
+}
+{{end}}{{end}}
